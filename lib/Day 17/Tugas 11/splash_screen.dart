@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/Day%2013/bottom.dart';
+import 'package:flutter_application_1/Day%2013/drawer.dart';
 import 'package:flutter_application_1/Day%2017/Tugas%2011/login_idris.dart';
 import 'package:flutter_application_1/Day%2017/Tugas%2011/service/preference_handler.dart';
-import 'package:flutter_application_1/Day%2017/service/preference_handler.dart';
 import 'package:lottie/lottie.dart';
 
 // Widget SplashScreenDay17 berupa StatefulWidget untuk menangani proses async (delay & pengecekan session login saat awal aplikasi dibuka).
@@ -26,7 +25,7 @@ class _SplashScreenDay17State extends State<SplashScreenDay17> {
     if (PreferenceHandler.isLogin == true) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const BottomDay13()),
+        MaterialPageRoute(builder: (context) => const DrawerDay13()),
       );
     } else {
       Navigator.pushReplacement(

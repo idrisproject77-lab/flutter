@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/Day%2013/drawer.dart';
 import 'package:flutter_application_1/Day%2017/Tugas%2011/service/preference_handler.dart';
+import 'package:flutter_application_1/Day%2018/dataBase/db_helper.dart';
+import 'package:flutter_application_1/Day%2018/dataBase/userList.dart';
+import 'package:flutter_application_1/Day%2018/models/user_login_model.dart';
 
 // 1. Ubah menjadi StatefulWidget
 class LoginPage extends StatefulWidget {
@@ -14,8 +17,9 @@ class _LoginPageState extends State<LoginPage> {
   // 2. Buat TextEditingController untuk mengambil teks dari form
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
 
-  // 3. Pindahkan variabel state temanmu ke DALAM class ini agar lebih aman
+  // 3. Pindahkan variabel state ke DALAM class ini agar lebih aman
   bool _isObscure = true; // Menggantikan 'mata', default true agar tertutup
   bool _isChecked = false; // Untuk checkbox
 
@@ -25,6 +29,69 @@ class _LoginPageState extends State<LoginPage> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  void register() async {
+    final user = _emailController.text.trim();
+    final pass = _passwordController.text;
+
+    if (user.isEmpty || pass.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Isi semua field!')));
+      return;
+    }
+
+    final pengguna = UserModelSQL(email: user, password: pass);
+
+    bool success = await DBHelper().registerUser(pengguna);
+
+    if (!mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Akun berhasil dibuat')));
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Email sudah terdaftar!')));
+    }
+  }
+
+  // 5. Tambahkan Fungsi Login SQFlite sesuai permintaanmu
+  void login() async {
+    final user = _emailController.text.trim();
+    final pass = _passwordController.text;
+
+    if (user.isEmpty || pass.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Isi semua field!')));
+      return;
+    }
+
+    final pengguna = await DBHelper().loginUser(user, pass);
+
+    if (!mounted) return;
+
+    if (pengguna != null) {
+      // Simpan status sesi Shared Preferences agar keep login aktif
+      await PreferenceHandler.setLogin(true);
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const DrawerDay13()),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Login gagal! email atau Password salah.'),
+        ),
+      );
+    }
   }
 
   @override
@@ -65,238 +132,314 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ],
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Image.asset("assets/images/Logo.png", width: 65),
-                      const SizedBox(height: 15),
-                      const Text(
-                        "Login",
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        "Enter your email and password to log in",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 14, color: Colors.grey),
-                      ),
-                      const SizedBox(height: 35),
-
-                      // FIELD EMAIL
-                      TextField(
-                        controller: _emailController, // Pasang controller
-                        decoration: InputDecoration(
-                          hintText: "IDRIS@gmail.com",
-                          hintStyle: const TextStyle(color: Colors.black87),
-                          filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 18,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(
-                              color: Colors.grey.shade300,
-                              width: 1.5,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: const BorderSide(
-                              color: Colors.blue,
-                              width: 2,
-                            ),
+                  // 6. Bungkus dengan Form agar validasi berjalan
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset("assets/images/Logo.png", width: 65),
+                        const SizedBox(height: 15),
+                        const Text(
+                          "Login",
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 15),
+                        const SizedBox(height: 8),
+                        const Text(
+                          "Enter your email and password to log in",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 14, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 35),
 
-                      // FIELD PASSWORD
-                      TextField(
-                        controller: _passwordController,
-                        obscureText: _isObscure,
-                        decoration: InputDecoration(
-                          hintText: "********",
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _isObscure
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
-                              color: Colors.grey,
+                        // FIELD EMAIL (Menggunakan TextFormField)
+                        TextFormField(
+                          controller: _emailController,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return "Email tidak boleh kosong";
+                            } else if (!value.contains('@')) {
+                              return "Email tidak valid";
+                            }
+                            return null;
+                          },
+                          decoration: InputDecoration(
+                            hintText: "IDRIS@gmail.com",
+                            hintStyle: const TextStyle(color: Colors.black87),
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 18,
                             ),
-                            onPressed: () {
-                              setState(() {
-                                _isObscure = !_isObscure; // Toggle nilai mata
-                              });
-                            },
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 18,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(
-                              color: Colors.grey.shade300,
-                              width: 1.5,
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade300,
+                                width: 1.5,
+                              ),
                             ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: const BorderSide(
-                              color: Colors.blue,
-                              width: 2,
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: const BorderSide(
+                                color: Colors.blue,
+                                width: 2,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
+                        const SizedBox(height: 15),
 
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: Checkbox(
-                                  value: _isChecked, // Gunakan variabel state
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _isChecked =
-                                          value ??
-                                          false; // Ubah nilai saat diklik
-                                    });
-                                  },
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(4),
+                        // FIELD PASSWORD (Menggunakan TextFormField)
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: _isObscure,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return "Password tidak boleh kosong";
+                            }
+                            return null;
+                          },
+                          decoration: InputDecoration(
+                            hintText: "********",
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _isObscure
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                                color: Colors.grey,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _isObscure = !_isObscure;
+                                });
+                              },
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 18,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade300,
+                                width: 1.5,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: const BorderSide(
+                                color: Colors.blue,
+                                width: 2,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: Checkbox(
+                                    value: _isChecked,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _isChecked = value ?? false;
+                                      });
+                                    },
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
                                   ),
                                 ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  "Remember me",
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            TextButton(
+                              onPressed: () {},
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(50, 30),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                "Remember me",
+                              child: const Text(
+                                "Forgot Password ?",
                                 style: TextStyle(
-                                  color: Colors.grey,
+                                  color: Color(0xFF4D81E7),
+                                  fontWeight: FontWeight.w600,
                                   fontSize: 13,
                                 ),
                               ),
-                            ],
-                          ),
-                          TextButton(
-                            onPressed: () {},
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              minimumSize: const Size(50, 30),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
-                            child: const Text(
-                              "Forgot Password ?",
-                              style: TextStyle(
-                                color: Color(0xFF4D81E7),
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 25),
+                          ],
+                        ),
+                        const SizedBox(height: 25),
 
-                      SizedBox(
-                        width: double.infinity,
-                        height: 55,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF2E6FF3),
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                          ),
-                          onPressed: () {
-                            PreferenceHandler.setLogin(true);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const DrawerDay13(),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 55,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF2E6FF3),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
                               ),
-                            );
-                          },
-                          child: const Text(
-                            'Log In',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                            ),
+                            // Memanggil fungsi login SQFlite dan validasi form
+                            onPressed: () {
+                              if (_formKey.currentState!.validate()) {
+                                login();
+                              }
+                            },
+                            child: const Text(
+                              'Log In',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 30),
+                        const SizedBox(height: 30),
 
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Divider(thickness: 1, color: Colors.white),
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 10),
-                            child: Text(
-                              "Or login with",
+                        SizedBox(
+                          width: double.infinity,
+                          height: 55,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF2E6FF3),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                            ),
+                            // Memanggil fungsi login SQFlite dan validasi form
+                            onPressed: () {
+                              if (_formKey.currentState!.validate()) {
+                                register();
+                              }
+                            },
+                            child: const Text(
+                              'Register',
                               style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 13,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
-                          Expanded(
-                            child: Divider(thickness: 1, color: Colors.white),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 25),
+                        ),
+                        const SizedBox(height: 30),
 
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          tombolIcon("assets/images/google.png"),
-                          tombolIcon("assets/images/Facebook.png"),
-                          tombolIcon("assets/images/Apple.png"),
-                          tombolIcon("assets/images/device.png"),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Divider(thickness: 1, color: Colors.white),
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10),
+                              child: Text(
+                                "Or login with",
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Divider(thickness: 1, color: Colors.white),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 25),
 
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text(
-                            "Don't have an account?",
-                            style: TextStyle(color: Colors.grey, fontSize: 14),
-                          ),
-                          TextButton(
-                            onPressed: () {},
-                            child: const Text(
-                              "Sign Up",
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            tombolIcon("assets/images/Logo.png"),
+                            tombolIcon("assets/images/Facebook.png"),
+                            tombolIcon("assets/images/Apple.png"),
+                            tombolIcon("assets/images/device.png"),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              "Don't have an account?",
                               style: TextStyle(
-                                color: Colors.blue,
-                                fontWeight: FontWeight.bold,
+                                color: Colors.grey,
                                 fontSize: 14,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
+                            TextButton(
+                              onPressed: () {},
+                              child: const Text(
+                                "Sign Up",
+                                style: TextStyle(
+                                  color: Colors.blue,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              "Lihat data akun?",
+                              style: TextStyle(
+                                color: Colors.white54,
+                                fontSize: 14,
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                // Navigasi ke UserListPage
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const UserListPage(),
+                                  ),
+                                );
+                              },
+                              child: const Text(
+                                "User List",
+                                style: TextStyle(
+                                  color: Colors.blueAccent,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

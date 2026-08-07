@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/DAY_6/layoutingidris.dart';
+import 'package:flutter_application_1/Day%2017/Tugas%2011/service/preference_handler.dart';
+import 'package:flutter_application_1/Day%2017/Tugas%2011/splash_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await PreferenceHandler.init();
+
   runApp(const MyApp());
 }
 
@@ -12,7 +16,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      debugShowCheckedModeBanner: false,
+      title: 'ThinkSpend',
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -29,9 +34,15 @@ class MyApp extends StatelessWidget {
         //
         // This works for code too, not just values: Most code changes can be
         // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const LayoutingDay6(),
-    );   
+      // // PHUS NAMED
+      // initialRoute: "/",
+      // routes: {
+      //   "/": (context) => LoginPage(),
+      //   "/home": (context) => DrawerDay13(),
+      // },
+      home: const SplashScreenDay17(),
+    );
   }
 }
