@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-// Sesuaikan dengan path database helper dan model Day 18 kamu
-import 'package:flutter_application_1/Day%2018/dataBase/db_helper.dart';
-import 'package:flutter_application_1/Day%2018/models/user_login_model.dart';
+import 'package:flutter_application_1/Tugas%2012/views/register_day12.dart'; // Sesuaikan path file register Anda
+
+import '../database/database_helper.dart';
+import '../models/user_model.dart';
 
 class UserListDay12 extends StatefulWidget {
   const UserListDay12({super.key});
@@ -11,104 +12,48 @@ class UserListDay12 extends StatefulWidget {
 }
 
 class _UserListDay12State extends State<UserListDay12> {
-  // Ubah tipe model menyesuaikan Day 18 (UserModelSQL)
-  late Future<List<UserModelSQL>> users;
+  late Future<List<UserModel>> users;
 
   @override
   void initState() {
     super.initState();
-    loadData();
+    refreshData();
   }
 
-  // Fungsi untuk memuat data dari DBHelper Day 18
-  void loadData() {
+  void refreshData() {
     setState(() {
-      users = DBHelper().getAllUsers();
+      users = DatabaseHelper.instance.getUsers();
     });
   }
 
-  // 1. FUNGSI HAPUS DATA
-  void hapusUser(int id) async {
-    await DBHelper().deleteUser(id);
-    loadData(); // Refresh tampilan setelah dihapus
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Data berhasil dihapus')));
-  }
-
-  // 2. FUNGSI EDIT DATA (Menampilkan Dialog Form Edit)
-  void tampilkanFormEdit(UserModelSQL user) {
-    final namaC = TextEditingController(text: user.nama);
-    final emailC = TextEditingController(text: user.email);
-    final hpC = TextEditingController(text: user.noHp);
-    final passwordC = TextEditingController(text: user.password);
-    final kotaC = TextEditingController(text: user.kota);
-
+  // Fungsi untuk menghapus data dengan konfirmasi AlertDialog
+  void konfirmasiHapus(int id, String nama) {
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Edit Data User'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: namaC,
-                  decoration: const InputDecoration(labelText: 'Nama'),
-                ),
-                TextField(
-                  controller: emailC,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                ),
-                TextField(
-                  controller: hpC,
-                  decoration: const InputDecoration(labelText: 'No HP'),
-                ),
-                TextField(
-                  controller: passwordC,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Password'),
-                ),
-                TextField(
-                  controller: kotaC,
-                  decoration: const InputDecoration(labelText: 'Kota'),
-                ),
-              ],
-            ),
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Data'),
+        content: Text('Apakah Anda yakin ingin menghapus data $nama?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Batal'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                // Buat objek user baru dengan ID yang sama untuk di-update
-                final userUpdated = UserModelSQL(
-                  id: user.id,
-                  nama: namaC.text.trim(),
-                  email: emailC.text.trim(),
-                  noHp: hpC.text.trim(),
-                  password: passwordC.text,
-                  kota: kotaC.text.trim(),
-                );
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(context); // Tutup dialog
+              await DatabaseHelper.instance.deleteUser(id);
+              refreshData(); // Perbarui tampilan list secara instan
 
-                await DBHelper().updateUser(userUpdated);
-                loadData(); // Refresh data
-
-                if (!mounted) return;
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Data berhasil diubah')),
-                );
-              },
-              child: const Text('Simpan'),
-            ),
-          ],
-        );
-      },
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Data berhasil dihapus')),
+              );
+            },
+            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -119,10 +64,10 @@ class _UserListDay12State extends State<UserListDay12> {
         title: const Text('Data Peserta'),
         centerTitle: true,
         actions: [
-          IconButton(onPressed: loadData, icon: const Icon(Icons.refresh)),
+          IconButton(onPressed: refreshData, icon: const Icon(Icons.refresh)),
         ],
       ),
-      body: FutureBuilder<List<UserModelSQL>>(
+      body: FutureBuilder<List<UserModel>>(
         future: users,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -170,44 +115,30 @@ class _UserListDay12State extends State<UserListDay12> {
                               ),
                             ),
                           ),
-                          // TOMBOL EDIT & DELETE DI SINI
+                          // TOMBOL EDIT
                           IconButton(
                             icon: const Icon(Icons.edit, color: Colors.blue),
-                            onPressed: () => tampilkanFormEdit(user),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () {
-                              // Konfirmasi sebelum menghapus
-                              showDialog(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text('Hapus Data'),
-                                  content: Text(
-                                    'Yakin ingin menghapus ${user.nama}?',
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      child: const Text('Batal'),
-                                    ),
-                                    ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red,
-                                      ),
-                                      onPressed: () {
-                                        Navigator.pop(context);
-                                        hapusUser(user.id!);
-                                      },
-                                      child: const Text(
-                                        'Hapus',
-                                        style: TextStyle(color: Colors.white),
-                                      ),
-                                    ),
-                                  ],
+                            onPressed: () async {
+                              // Navigasi ke Form Register/Update dengan membawa data user
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      RegisterDay12(user: user),
                                 ),
                               );
+
+                              // Jika berhasil diupdate, refresh data list
+                              if (result == true) {
+                                refreshData();
+                              }
                             },
+                          ),
+                          // TOMBOL DELETE
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () =>
+                                konfirmasiHapus(user.id!, user.nama),
                           ),
                         ],
                       ),
